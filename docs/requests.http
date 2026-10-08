@@ -1,0 +1,22 @@
+@login = http://127.0.0.1:3001
+@products = http://127.0.0.1:3002
+@invoices = http://127.0.0.1:3005
+@shipping = http://127.0.0.1:3004
+@firebaseIdToken = replace-with-Firebase-ID-token-from-frontend
+@invoiceToken = replace-with-accessToken-from-invoices-token
+@productId = replace-with-product-id
+@invoiceId = replace-with-invoice-id
+@shipmentId = replace-with-shipment-id
+
+### Verify the Firebase ID token supplied by the frontend and provision its user
+POST {{login}}/api/auth/session
+Content-Type: application/json
+
+{"idToken":"{{firebaseIdToken}}"}
+
+### Public product list
+GET {{products}}/api/products
+
+### Create a product (price in minor units)
+POST {{products}}/api/products
+Content-Type: application/json

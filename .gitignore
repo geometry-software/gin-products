@@ -1,0 +1,9 @@
+.env
+.env.*
+!.env.local.example
+bin/
+.tools/
+.cache/
+logs/
+coverage.out
+.DS_Store

@@ -1,0 +1,137 @@
+name: gin-products
+x-common: &common
+  restart: unless-stopped
+  init: true
+  read_only: true
+  tmpfs: [/tmp]
+  security_opt: [no-new-privileges:true]
+x-environment: &environment
+  BIND_HOST: 0.0.0.0
+  GIN_MODE: release
+  INTERNAL_API_KEY: ${INTERNAL_API_KEY:?Configure INTERNAL_API_KEY in .env}
+  LOGIN_SERVICE_URL: http://login:3001
+  PRODUCTS_SERVICE_URL: http://products:3002
+  INVOICES_SERVICE_URL: http://invoices:3005
+  ADAPTERS_SERVICE_URL: http://adapters:3006
+  PROVIDERS_SERVICE_URL: http://providers:3007
+services:
+  login:
+    <<: *common
+    build:
+      context: .
+      args:
+        SERVICE: login
+    ports: ["127.0.0.1:${LOGIN_PORT:-3001}:3001"]
+    environment:
+      <<: *environment
+      LOGIN_PORT: "3001"
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:?Configure FIREBASE_PROJECT_ID in .env}
+    depends_on:
+      adapters:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, "http://127.0.0.1:3001/readyz"]
+      interval: 10s
+      timeout: 8s
+      retries: 6
+      start_period: 30s
+  products:
+    <<: *common
+    build:
+      context: .
+      args:
+        SERVICE: products
+    ports: ["127.0.0.1:${PRODUCTS_PORT:-3002}:3002"]
+    environment:
+      <<: *environment
+      PRODUCTS_PORT: "3002"
+    depends_on:
+      adapters:
+        condition: service_healthy
+      providers:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, "http://127.0.0.1:3002/readyz"]
+      interval: 10s
+      timeout: 8s
+      retries: 6
+      start_period: 30s
+  shipping:
+    <<: *common
+    build:
+      context: .
+      args:
+        SERVICE: shipping
+    ports: ["127.0.0.1:${SHIPPING_PORT:-3004}:3004"]
+    environment:
+      <<: *environment
+      SHIPPING_PORT: "3004"
+    depends_on:
+      adapters:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, "http://127.0.0.1:3004/readyz"]
+      interval: 10s
+      timeout: 8s
+      retries: 6
+      start_period: 30s
+  invoices:
+    <<: *common
+    build:
+      context: .
+      args:
+        SERVICE: invoices
+    ports: ["127.0.0.1:${INVOICES_PORT:-3005}:3005"]
+    environment:
+      <<: *environment
+      APP_JWT_SECRET: ${APP_JWT_SECRET:?Configure APP_JWT_SECRET in .env}
+      INVOICES_PORT: "3005"
+    depends_on:
+      adapters:
+        condition: service_healthy
+      login:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, "http://127.0.0.1:3005/readyz"]
+      interval: 10s
+      timeout: 8s
+      retries: 6
+      start_period: 30s
+  adapters:
+    <<: *common
+    build:
+      context: .
+      args:
+        SERVICE: adapters
+    ports: ["127.0.0.1:${ADAPTERS_PORT:-3006}:3006"]
+    environment:
+      <<: *environment
+      ADAPTERS_PORT: "3006"
+      USERS_MONGODB_URI: ${USERS_MONGODB_URI:-}
+      LOGIN_MONGODB_URI: ${LOGIN_MONGODB_URI:-}
+      PRODUCTS_MONGODB_URI: ${PRODUCTS_MONGODB_URI:-}
+      INVOICES_MONGODB_URI: ${INVOICES_MONGODB_URI:-}
+      SHIPPING_MONGODB_URI: ${SHIPPING_MONGODB_URI:-}
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, "http://127.0.0.1:3006/readyz"]
+      interval: 10s
+      timeout: 8s
+      retries: 6
+      start_period: 30s
+  providers:
+    <<: *common
+    build:
+      context: .
+      args:
+        SERVICE: providers
+    ports: ["127.0.0.1:${PROVIDERS_PORT:-3007}:3007"]
+    environment:
+      <<: *environment
+      PROVIDERS_PORT: "3007"
+      PRODUCTS_MONGODB_URI: ${PRODUCTS_MONGODB_URI:-}
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, "http://127.0.0.1:3007/readyz"]
+      interval: 10s
+      timeout: 8s
+      retries: 6
+      start_period: 30s

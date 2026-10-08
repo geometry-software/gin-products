@@ -1,0 +1,33 @@
+package main
+
+import (
+	"context"
+	"github.com/geometry-software/gin-products/apps/providers/shared/config"
+	"github.com/geometry-software/gin-products/apps/providers/shared/controller"
+	"github.com/geometry-software/gin-products/apps/providers/shared/http"
+	domain "github.com/geometry-software/gin-products/apps/login/internal"
+	"github.com/gin-gonic/gin"
+	"log/slog"
+	"os"
+)
+
+func main() {
+	if err := config.Load(); err != nil {
+		slog.Error(err.Error())
+		os.Exit(1)
+	}
+	if config.Get("FIREBASE_PROJECT_ID", "") == "" {
+		slog.Error("FIREBASE_PROJECT_ID is required")
+		os.Exit(1)
+	}
+	r := http.New("login")
+	domain.Routes(r, domain.New())
+	r.GET("/readyz", func(c *gin.Context) {
+		if err := http.Call(c.Request.Context(), "GET", config.URL("adapters")+"/readyz", "login", nil, nil); err != nil {
+			controller.Error(c, err)
+			return
+		}
+		c.JSON(200, gin.H{"status": "ready"})
+	})
+	http.Run("login", r, func(context.Context) {})
+}

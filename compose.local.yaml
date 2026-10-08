@@ -1,0 +1,48 @@
+# Optional local MongoDB replica set; Login verifies frontend Firebase ID tokens.
+services:
+  adapters:
+    environment:
+      USERS_MONGODB_URI: mongodb://mongo:27017/nx_users?replicaSet=rs0
+      LOGIN_MONGODB_URI: mongodb://mongo:27017/nx_auth?replicaSet=rs0
+      PRODUCTS_MONGODB_URI: mongodb://mongo:27017/nx_products?replicaSet=rs0
+      INVOICES_MONGODB_URI: mongodb://mongo:27017/nx_invoices?replicaSet=rs0
+      SHIPPING_MONGODB_URI: mongodb://mongo:27017/nx_shipping?replicaSet=rs0
+    depends_on:
+      mongo-init:
+        condition: service_completed_successfully
+  providers:
+    environment:
+      PRODUCTS_MONGODB_URI: mongodb://mongo:27017/nx_products?replicaSet=rs0
+    depends_on:
+      mongo-init:
+        condition: service_completed_successfully
+  mongo:
+    image: mongo:8.0
+    command: [mongod, --replSet, rs0, --bind_ip_all]
+    ports: ["127.0.0.1:27017:27017"]
+    volumes: [mongo-data:/data/db]
+    healthcheck:
+      test: [CMD, mongosh, --quiet, --eval, "db.adminCommand('ping').ok"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+  mongo-init:
+    image: mongo:8.0
+    restart: "no"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    entrypoint: [mongosh, --host, "mongo:27017", --quiet, --eval]
+    command:
+      - >-
+        try { rs.status(); } catch (e) {
+          if (e.code !== 94) throw e;
+          rs.initiate({_id:'rs0',members:[{_id:0,host:'mongo:27017'}]});
+        }
+        for (let i=0;i<60;i++) {
+          if (db.hello().isWritablePrimary) quit(0);
+          sleep(1000);
+        }
+        quit(1);
+volumes:
+  mongo-data:
